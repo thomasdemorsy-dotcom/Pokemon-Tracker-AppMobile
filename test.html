@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tracker de Récompenses Pokémon</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 10px; background: #f5f5f5; }
+    h1 { font-size: 1.5em; }
+
+    #deckChoiceContainer { margin-bottom: 10px; text-align: center; }
+    #deckChoice {
+      font-size: 16px;
+      padding: 5px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      cursor: pointer;
+    }
+
+    #deck { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 140px;
+      margin: 4px 0;
+      background: white;
+      padding: 5px;
+      border-radius: 5px;
+      box-sizing: border-box;
+    }
+    .card img {
+      height: auto;
+      width: 100%;
+      border-radius: 4px;
+      background: #eee;
+      object-fit: cover;
+      transition: filter 0.2s;
+    }
+    .card.maxed img { filter: grayscale(100%) brightness(70%); }
+
+    .buttons {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 5px;
+      width: 100%;
+    }
+    button {
+      width: 35px;
+      height: 35px;
+      font-size: 18px;
+      margin: 0 3px;
+      border: none;
+      border-radius: 5px;
+      background: #ddd;
+      cursor: pointer;
+      user-select: none;
+    }
+    button:active { background: #bbb; }
+    .count {
+      width: 25px;
+      text-align: center;
+      font-size: 16px;
+      user-select: none;
+    }
+
+    .results { margin-top: 20px; padding: 10px; background: #fff; border-radius: 5px; }
+    .sticky {
+      position: sticky;
+      top: 0;
+      background: #f5f5f5;
+      padding: 5px;
+      z-index: 10;
+    }
+    .results img {
+      height: 40px;
+      vertical-align: middle;
+      border-radius: 4px;
+      margin-right: 8px;
+      background: #eee;
+      object-fit: cover;
+    }
+
+    .reset-button { margin-bottom: 10px; text-align: center; }
+    .reset-button button {
+      width: 35px;
+      height: 35px;
+      font-size: 16px;
+      background: #f55;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      user-select: none;
+    }
+    .reset-button button:hover { background: #d33; }
+
+    @media screen and (max-width: 600px) {
+      .card { width: 45%; }
+    }
+
+    #globalCounter { text-align: center; font-weight: bold; margin-bottom: 10px; }
+
+    #filters {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    #filters input[type="text"], #filters select {
+      padding: 5px;
+      font-size: 14px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h1>Mes cartes Récompense</h1>
+
+  <div id="deckChoiceContainer">
+    <label for="deckChoice">Choisir un deck :</label>
+    <select id="deckChoice">
+      <option value="typhlosion">Typhlosion</option>
+      <option value="baojian">Baojian</option>
+      <option value="gardevoir">Gardevoir</option>
+    </select>
+  </div>
+
+  <div class="reset-button">
+    <button onclick="resetAll()" title="Réinitialiser tous les compteurs">R</button>
+  </div>
+
+  <div id="filters">
+    <input type="text" id="searchInput" placeholder="Rechercher une carte..." />
+    <select id="typeFilter">
+      <option value="all">Tous</option>
+      <option value="pokemon">Pokémon</option>
+      <option value="trainer">Dresseur</option>
+      <option value="energy">Énergie</option>
+    </select>
+  </div>
+
+  <div id="globalCounter">Total vues : 0</div>
+  <div id="deck"></div>
+
+  <div class="results sticky">
+    <h2>Cartes possiblement en Récompense :</h2>
+    <ul id="remaining"></ul>
+  </div>
+
+<script>
+const decks = {
+  typhlosion: [
+    // Pokémon (19)
+    ["Fezandipiti ex", 1, "Fezandipiti ex.PNG"],
+    ["Pidgey", 2, "Pidgey.PNG"],
+    ["Pidgeot ex", 2, "Pidgeot ex.PNG"],
+    ["Pidgeotto", 2, "Pidgeotto.PNG"],
+    ["Ethan's Cyndaquil", 4, "Ethan's Cyndaquil.PNG"],
+    ["Ethan's Quilava", 4, "Ethan's Quilava.PNG"],
+    ["Victini", 1, "Victini.PNG"],
+    ["Ethan's Typhlosion", 3, "Ethan's Typhlosion.PNG"],
+
+    // Trainer (36)
+    ["Super Rod", 1, "Super Rod.PNG"],
+    ["Secret Box", 1, "Secret Box.PNG"],
+    ["Artazon", 1, "Artazon.PNG"],
+    ["Earthen Vessel", 1, "Earthen Vessel.PNG"],
+    ["Ethan's Adventure", 4, "Ethan's Adventure.PNG"],
+    ["Ultra Ball", 4, "Ultra Ball.PNG"],
+    ["Night Stretcher", 1, "Night Stretcher.PNG"],
+    ["Sacred Ash", 1, "Sacred Ash.PNG"],
+    ["Iono", 2, "Iono.PNG"],
+    ["Buddy-Buddy Poffin", 4, "Buddy-Buddy Poffin.PNG"],
+    ["Technical Machine: Evolution", 2, "Technical Machine Evolution.PNG"],
+    ["Redeemable Ticket", 1, "Redeemable Ticket.PNG"],
+    ["Arven", 3, "Arven.PNG"],
+    ["Counter Catcher", 2, "Counter Catcher.PNG"],
+    ["Brave Angle", 2, "Brave Angle.PNG"],
+    ["Professor's Research", 2, "Professor's Research.PNG"],
+    ["Rare Candy", 1, "Rare Candy.PNG"],
+    ["Gravity Mountain", 1, "Gravity Mountain.PNG"],
+    ["Boss's Orders", 2, "Boss's Orders.PNG"],
+
+    // Energy (5)
+    ["Fire Energy", 5, "Fire Energy.PNG"]
+  ],
+  baojian: [
+    // Pokémon (19)
+    ["Dunsparce", 3, "Dunsparce.PNG"],
+    ["Dudunsparce", 3, "Dudunsparce.PNG"],
+    ["Frigibax", 3, "Frigibax.PNG"],
+    ["Arctibax", 2, "Arctibax.PNG"],
+    ["Baxcalibur", 2, "Baxcalibur.PNG"],
+    ["Chien-Pao ex", 2, "Chien-Pao ex.PNG"],
+    ["Iron Hands ex", 1, "Iron Hands ex.PNG"],
+    ["Fezandipiti ex", 1, "Fezandipiti ex.PNG"],
+    ["Iron Bundle", 1, "Iron Bundle.PNG"],
+    ["Wellspring Mask Ogerpon ex", 1, "Wellspring Mask Ogerpon ex.PNG"],
+
+    // Trainer (30)
+    ["Arven", 4, "Arven.PNG"],
+    ["Hilda", 4, "Hilda.PNG"],
+    ["Buddy-Buddy Poffin", 4, "Buddy-Buddy Poffin.PNG"],
+    ["Great Ball", 4, "Great Ball.PNG"],
+    ["Superior Energy Retrieval", 4, "Superior Energy Retrieval.PNG"],
+    ["Rare Candy", 2, "Rare Candy.PNG"],
+    ["Earthen Vessel", 1, "Earthen Vessel.PNG"],
+    ["Night Stretcher", 1, "Night Stretcher.PNG"],
+    ["Super Rod", 1, "Super Rod.PNG"],
+    ["Nest Ball", 1, "Nest Ball.PNG"],
+    ["Technical Machine: Evolution", 2, "Technical Machine Evolution.PNG"],
+    ["Artazon", 2, "Artazon.PNG"],
+
+    // Energy (11)
+    ["Water Energy", 8, "Water Energy.PNG"],
+    ["Lightning Energy", 1, "Lightning Energy.PNG"],
+    ["Enriching Energy", 1, "Enriching Energy.PNG"],
+    ["Jet Energy", 1, "Jet Energy.PNG"]
+  ],
+  gardevoir: [
+    // Pokémon (10)
+    ["Jellicent ex", 2, "Jellicent ex.PNG"],
+    ["Scream Tail", 1, "Scream Tail.PNG"],
+    ["Munkidori", 3, "Munkidori.PNG"],
+    ["Kirlia", 2, "Kirlia.PNG"],
+    ["Fezandipiti", 1, "Fezandipiti ex.PNG"],
+    ["Frillish", 2, "Frillish.PNG"],
+    ["Lillie's Clefairy ex", 1, "Lillie's Clefairy ex.PNG"],
+    ["Ralts", 3, "Ralts.PNG"],
+    ["Klefki", 1, "Klefki.PNG"],
+    ["Gardevoir ex", 2, "Gardevoir ex.PNG"],
+
+    // Dresseur (15)
+    ["Counter Catcher", 1, "Counter Catcher.PNG"],
+    ["Secret Box", 1, "Secret Box.PNG"],
+    ["Boss's Orders", 1, "Boss's Orders.PNG"],
+    ["Night Stretcher", 2, "Night Stretcher.PNG"],
+    ["Nest Ball", 2, "Nest Ball.PNG"],
+    ["Artazon", 2, "Artazon.PNG"],
+    ["Iono", 4, "Iono.PNG"],
+    ["Arven", 2, "Arven.PNG"],
+    ["Technical Machine: Devolution", 2, "Technical Machine Devolution.PNG"],
+    ["Technical Machine: Evolution", 1, "Technical Machine Evolution.PNG"],
+    ["Super Rod", 1, "Super Rod.PNG"],
+    ["Professor's Research", 4, "Professor's Research.PNG"],
+    ["Ultra Ball", 4, "Ultra Ball.PNG"],
+    ["Rare Candy", 2, "Rare Candy.PNG"],
+    ["Earthen Vessel", 3, "Earthen Vessel.PNG"],
+
+    // Énergie
+    ["Basic Psychic Energy", 7, "Basic Psychic Energy.PNG"],
+    ["Basic Darkness Energy", 3, "Basic Darkness Energy.PNG"]
+  ]
+};
+
+function orderType(name){
+  const t = getType(name);
+  return t === 'pokemon' ? 1 : (t === 'trainer' ? 2 : 3);
+}
+function getType(name){
+  const lower = name.toLowerCase();
+  if (lower.includes('énergie') || lower.includes('energy')) return 'energy';
+  if (lower.includes('boss') || lower.includes('aventure') || lower.includes('recherche du professeur') || lower.includes('hilda') || lower.includes('superior') || lower.includes('great ball') || lower.includes('nest ball') || lower.includes('super rod') || lower.includes('technical machine') || lower.includes('artazon') || lower.includes('rare candy') || lower.includes('buddy-buddy') || lower.includes('night stretcher') || lower.includes('earthen vessel') || lower.includes('secret box') || lower.includes('iono') || lower.includes('redeemable ticket') || lower.includes('counter catcher') || lower.includes('brave bangle') || lower.includes('professor\'s research')) return 'trainer';
+  if (lower.includes('ex') || lower.includes('victini') || lower.includes('pidge') || lower.includes('fezandipiti') || lower.includes('dunsparce') || lower.includes('frigibax') || lower.includes('baxcalibur') || lower.includes('chien-pao') || lower.includes('iron hands') || lower.includes('iron bundle') || lower.includes('wellspring') || lower.includes('arctibax') || lower.includes('ethan\'s') || lower.includes('fezantipti')) return 'pokemon';
+  return 'trainer';
+}
+function createDeckUI(){
+  const deckChoice = document.getElementById('deckChoice').value;
+  const deckList = decks[deckChoice].slice().sort((a,b) => orderType(a[0]) - orderType(b[0]));
+  const deck = document.getElementById('deck');
+  deck.innerHTML = '';
+  const term = localStorage.getItem(`search-${deckChoice}`) || '';
+  const filt = localStorage.getItem(`filter-${deckChoice}`) || 'all';
+  document.getElementById('searchInput').value = term;
+  document.getElementById('typeFilter').value = filt;
+  deckList.forEach(([name, qty, img]) => {
+    const type = getType(name);
+    if (filt !== 'all' && type !== filt) return;
+    if (!name.toLowerCase().includes(term.toLowerCase())) return;
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.setAttribute('data-name', name);
+    card.setAttribute('data-qty', qty);
+    const saved = parseInt(localStorage.getItem(`count-${deckChoice}-${name}`)) || 0;
+    card.innerHTML = `
+      <img src="images/${img}" alt="${name}" onerror="this.src='images/placeholder.PNG';">
+      <div class="buttons">
+        <button class="minus">-</button>
+        <div class="count">${saved}</div>
+        <button class="plus">+</button>
+      </div>
+    `;
+    deck.appendChild(card);
+  });
+  setupButtons(deckChoice);
+  updateRemaining(deckChoice);
+}
+function setupButtons(deckChoice){
+  document.querySelectorAll('.plus').forEach(btn=>{
+    btn.onclick = () => {
+      const c = btn.parentElement.querySelector('.count');
+      const card = btn.closest('.card');
+      const max = +card.getAttribute('data-qty'), name = card.getAttribute('data-name');
+      let cur = +c.textContent;
+      if (cur < max){
+        c.textContent = ++cur;
+        localStorage.setItem(`count-${deckChoice}-${name}`, cur);
+        updateRemaining(deckChoice);
+      }
+    };
+  });
+  document.querySelectorAll('.minus').forEach(btn=>{
+    btn.onclick = () => {
+      const c = btn.parentElement.querySelector('.count');
+      const card = btn.closest('.card');
+      const name = card.getAttribute('data-name');
+      let cur = +c.textContent;
+      if (cur > 0){
+        c.textContent = --cur;
+        localStorage.setItem(`count-${deckChoice}-${name}`, cur);
+        updateRemaining(deckChoice);
+      }
+    };
+  });
+}
+function updateRemaining(deckChoice){
+  const rem = [], all = document.querySelectorAll('#deck .card');
+  all.forEach(card=>{
+    const seen = +card.querySelector('.count').textContent;
+    const qty = +card.getAttribute('data-qty');
+    const name = card.getAttribute('data-name');
+    const img = decks[deckChoice].find(c => c[0] === name)[2];
+    card.classList.toggle('maxed', seen >= qty);
+    for (let i=0; i<qty - seen; i++) rem.push({ name, img });
+  });
+  const list = document.getElementById('remaining');
+  list.innerHTML = '';
+  rem.forEach(c=>{
+    const li = document.createElement('li');
+    li.innerHTML = `<img src="images/${c.img}" alt="${c.name}" onerror="this.src='images/placeholder.PNG';">${c.name}`;
+    list.appendChild(li);
+  });
+  updateGlobalCounter();
+}
+function updateGlobalCounter(){
+  const total = [...document.querySelectorAll('.count')].reduce((sum, el)=> sum + +el.textContent, 0);
+  document.getElementById('globalCounter').textContent = `Total vues : ${total}`;
+}
+function resetAll(){
+  const deckChoice = document.getElementById('deckChoice').value;
+  document.querySelectorAll('.card').forEach(card=>{
+    const name = card.getAttribute('data-name');
+    card.querySelector('.count').textContent = '0';
+    localStorage.removeItem(`count-${deckChoice}-${name}`);
+    card.classList.remove('maxed');
+  });
+  updateRemaining(deckChoice);
+}
+document.getElementById('deckChoice').addEventListener('change', () => {
+  createDeckUI();
+});
+document.getElementById('searchInput').oninput = e => {
+  const deckChoice = document.getElementById('deckChoice').value;
+  localStorage.setItem(`search-${deckChoice}`, e.target.value);
+  createDeckUI();
+};
+document.getElementById('typeFilter').onchange = e => {
+  const deckChoice = document.getElementById('deckChoice').value;
+  localStorage.setItem(`filter-${deckChoice}`, e.target.value);
+  createDeckUI();
+};
+createDeckUI();
+</script>
+</body>
+</html>
